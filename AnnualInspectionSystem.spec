@@ -32,7 +32,8 @@ exe = EXE(
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
-    version='C:\\Users\\hoist\\AppData\\Local\\Temp\\2458575b-2795-4d4f-9f26-8222e1d71fc8',
+    version='C:\\Users\\hoist\\AppData\\Local\\Temp\\ce24fef9-5654-439a-8e6d-f1db2155a78d',
+    icon=['business_management_icon.ico'],
 )
 coll = COLLECT(
     exe,

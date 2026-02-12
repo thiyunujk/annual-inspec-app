@@ -312,6 +312,15 @@ def main(page: ft.Page):
             sort_reverse = False
         update_table()
 
+    def calculate_next_date(done_date):
+        # Rule: next date = same calendar day next year, minus one day.
+        try:
+            same_day_next_year = done_date.replace(year=done_date.year + 1)
+        except ValueError:
+            # Handle Feb 29 -> Feb 28 for non-leap years.
+            same_day_next_year = done_date.replace(year=done_date.year + 1, day=28)
+        return same_day_next_year - timedelta(days=1)
+
     def add_or_update():
         nonlocal edit_index, companies
 
@@ -320,7 +329,7 @@ def main(page: ft.Page):
 
         adj = date_picker.value + timedelta(hours=12)
         done_s = adj.date().strftime("%Y-%m-%d")
-        next_s = (adj.date() + timedelta(days=365)).strftime("%Y-%m-%d")
+        next_s = calculate_next_date(adj.date()).strftime("%Y-%m-%d")
 
         if edit_index is not None:
             cid = companies[edit_index]["id"]
