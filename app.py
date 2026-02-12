@@ -2,6 +2,7 @@
 import os
 import shutil
 import csv
+import json
 from datetime import datetime, timedelta, date
 
 from db import (
@@ -149,6 +150,46 @@ def main(page: ft.Page):
         dlg.open = False
         page.update()
 
+    def show_monthly_backup_export_reminder():
+        month_key = datetime.now().strftime("%Y-%m")
+        config = {}
+
+        try:
+            if os.path.exists(config_path):
+                with open(config_path, "r", encoding="utf-8") as f:
+                    loaded = json.load(f)
+                    if isinstance(loaded, dict):
+                        config = loaded
+        except Exception:
+            config = {}
+
+        if config.get("last_backup_export_reminder_month") == month_key:
+            return
+
+        config["last_backup_export_reminder_month"] = month_key
+        try:
+            with open(config_path, "w", encoding="utf-8") as f:
+                json.dump(config, f, ensure_ascii=False, indent=2)
+        except Exception:
+            # If config write fails, continue showing reminder for safety.
+            pass
+
+        dlg = ft.AlertDialog(
+            title=ft.Text("Monthly Reminder | 月次リマインダー"),
+            content=ft.Text(
+                "Please run both actions this month:\n"
+                "1) Backup button\n"
+                "2) Export CSV button\n\n"
+                "今月は次の2つを実行してください:\n"
+                "1) バックアップ\n"
+                "2) CSVエクスポート"
+            ),
+            actions=[ft.TextButton("OK", on_click=lambda e: close_dialog(dlg))],
+        )
+        page.overlay.append(dlg)
+        dlg.open = True
+        page.update()
+
     # ── Status Logic (Calendar Month Based) ───────────────────────
     def get_warning_start_date(next_date_obj):
         year = next_date_obj.year
@@ -171,6 +212,15 @@ def main(page: ft.Page):
             return "⚠️ 期限間近 | Due Soon", ft.Colors.ORANGE_700, ft.Colors.ORANGE_50
         else:
             return "✅ 正常 | OK", ft.Colors.GREEN_700, ft.Colors.GREEN_50
+
+    def calculate_next_date(done_date):
+        # Rule: next date = same calendar day next year, minus one day.
+        try:
+            same_day_next_year = done_date.replace(year=done_date.year + 1)
+        except ValueError:
+            # Handle Feb 29 -> Feb 28 for non-leap years.
+            same_day_next_year = done_date.replace(year=done_date.year + 1, day=28)
+        return same_day_next_year - timedelta(days=1)
 
     def export_to_csv():
         try:
@@ -414,7 +464,7 @@ def main(page: ft.Page):
 
         adj = date_picker.value + timedelta(hours=12)
         done_s = adj.date().strftime("%Y-%m-%d")
-        next_s = (adj.date() + timedelta(days=365)).strftime("%Y-%m-%d")
+        next_s = calculate_next_date(adj.date()).strftime("%Y-%m-%d")
         notes_s = notes_text.value or ""
 
         if edit_index is not None:
@@ -548,6 +598,7 @@ def main(page: ft.Page):
         ], expand=True, spacing=15)
     )
 
+    show_monthly_backup_export_reminder()
     update_table()
 
 if __name__ == "__main__":
