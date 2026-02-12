@@ -1,0 +1,7 @@
+Company,Last,Next,Status,Notes
+as,2026-02-05,2027-02-05,✅ 正常 | OK,aa
+company 2,2025-03-06,2026-03-06,⚠️ 期限間近 | Due Soon,
+company 4,2025-03-06,2026-03-06,⚠️ 期限間近 | Due Soon,
+company 5,2026-02-04,2027-02-04,✅ 正常 | OK,
+company 9,2025-03-08,2026-03-08,⚠️ 期限間近 | Due Soon,
+company trial 1,2026-02-03,2027-02-03,✅ 正常 | OK,
