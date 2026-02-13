@@ -19,7 +19,7 @@ from db import (
 )
 
 def main(page: ft.Page):
-    APP_VERSION = "1.0.0"
+    APP_VERSION = "1.0.2"
     page.title = "年次点検管理システム | Annual Inspection Tracker"
     page.window_width = 1200
     page.window_height = 900
@@ -75,25 +75,7 @@ def main(page: ft.Page):
         page.update()
         return
 
-    db_file = DB_NAME
-    if not os.path.exists(db_file):
-        dlg = ft.AlertDialog(
-            title=ft.Text("Database Missing"),
-            content=ft.Text(
-                f"Database not found:\n{db_file}\n\n"
-                f"Config file:\n{config_path}\n\n"
-                "Restore the database and restart the app."
-            ),
-            actions=[
-                ft.TextButton("Open Config", on_click=open_config),
-                ft.TextButton("OK", on_click=lambda e: (setattr(dlg, "open", False), page.update())),
-            ],
-        )
-        page.overlay.append(dlg)
-        dlg.open = True
-        page.add(ft.Text("Database not found. Restore the database and restart the app.", color=ft.Colors.RED))
-        page.update()
-        return
+    # Create DB/schema on first launch so fresh installs work.
     init_db()                   # ✔ once
     companies = load_companies() # ✔ safe
 
