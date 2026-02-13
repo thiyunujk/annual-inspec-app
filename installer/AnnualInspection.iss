@@ -23,7 +23,7 @@ SolidCompression=yes
 SetupIconFile=..\business_management_icon.ico
 
 [Files]
-Source: "..\dist_icon\AnnualInspectionSystem\*"; DestDir: "{app}"; Flags: recursesubdirs createallsubdirs
+Source: "..\dist\AnnualInspectionSystem\*"; DestDir: "{app}"; Flags: recursesubdirs createallsubdirs
 
 [Icons]
 Name: "{group}\{#AppName}"; Filename: "{app}\{#AppExeName}"
