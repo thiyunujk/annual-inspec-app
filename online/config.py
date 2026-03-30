@@ -20,9 +20,10 @@ def _load_env_file() -> None:
             continue
 
         key, value = line.split("=", 1)
-        key = key.strip()
+        key = key.strip().lstrip("﻿")
         value = value.strip().strip('"').strip("'")
-        if key and key not in os.environ:
+        if key:
+            # For this app, .env should take precedence over inherited shell vars.
             os.environ[key] = value
 
 
