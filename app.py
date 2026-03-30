@@ -21,7 +21,7 @@ from db import (
 from online.config import get_app_mode, is_online_mode_enabled
 
 def main(page: ft.Page):
-    APP_VERSION = "1.0.3"
+    APP_VERSION = "1.0.4"
     configured_mode = get_app_mode()
     online_mode_requested = is_online_mode_enabled()
     runtime_mode = "local"

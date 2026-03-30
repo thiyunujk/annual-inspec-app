@@ -1,9 +1,38 @@
 ﻿import os
+from pathlib import Path
+
+
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+ENV_PATH = PROJECT_ROOT / ".env"
+
+
+def _load_env_file() -> None:
+    """
+    Lightweight .env loader to avoid extra dependency.
+    Existing OS environment variables are not overwritten.
+    """
+    if not ENV_PATH.exists():
+        return
+
+    for raw_line in ENV_PATH.read_text(encoding="utf-8").splitlines():
+        line = raw_line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+
+        key, value = line.split("=", 1)
+        key = key.strip()
+        value = value.strip().strip('"').strip("'")
+        if key and key not in os.environ:
+            os.environ[key] = value
+
+
+_load_env_file()
 
 
 def get_app_mode() -> str:
     """Returns application mode: local (default) or online."""
-    return (os.getenv("APP_MODE", "local") or "local").strip().lower()
+    mode = (os.getenv("APP_MODE", "local") or "local").strip().lower()
+    return mode if mode in {"local", "online"} else "local"
 
 
 def get_supabase_url() -> str:
