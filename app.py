@@ -87,13 +87,13 @@ def main(page: ft.Page):
 
     def _refresh_diagnostics_panel():
         if diagnostics_mode_text is not None:
-            diagnostics_mode_text.value = f"Mode: {runtime_mode.upper()}"
+            diagnostics_mode_text.value = f"モード | Mode: {runtime_mode.upper()}"
         if diagnostics_host_text is not None:
-            diagnostics_host_text.value = f"Supabase Host: {supabase_host}"
+            diagnostics_host_text.value = f"Supabase ホスト | Host: {supabase_host}"
         if diagnostics_connection_text is not None:
-            diagnostics_connection_text.value = f"Connection: {diagnostics_connection_status}"
+            diagnostics_connection_text.value = f"接続状態 | Connection: {diagnostics_connection_status}"
         if diagnostics_last_error_text is not None:
-            diagnostics_last_error_text.value = f"Last Error: {diagnostics_last_error}"
+            diagnostics_last_error_text.value = f"最終エラー | Last Error: {diagnostics_last_error}"
 
     def _set_diagnostics_status(status=None, last_error=None, do_update=False):
         nonlocal diagnostics_connection_status, diagnostics_last_error
@@ -504,8 +504,8 @@ def main(page: ft.Page):
 
     col_widths = compute_col_widths()
 
-    company_name = ft.TextField(label="会社名 | Company Name", expand=True)
-    notes_text = ft.TextField(label="メモ | Notes", multiline=True, min_lines=2, max_lines=4, expand=True)
+    company_name = ft.TextField(label="会社名 | Company Name", width=760)
+    notes_text = ft.TextField(label="メモ | Notes", multiline=True, min_lines=2, max_lines=4, width=760)
     date_picker = ft.DatePicker(first_date=datetime.now() - timedelta(days=365*5), last_date=datetime.now() + timedelta(days=365*5))
     page.overlay.append(date_picker)
     selected_date_display = ft.Text("未選択 | Not selected", color=ft.Colors.GREY_700, size=13, italic=True)
@@ -572,10 +572,10 @@ def main(page: ft.Page):
     # ── Logic Actions ─────────────────────────────────────────────
     def test_connection(_):
         if runtime_mode != "online":
-            _set_diagnostics_status(status="OK", last_error="-")
+            _set_diagnostics_status(status="OK", last_error="-", do_update=True)
             dlg = ft.AlertDialog(
-                title=ft.Text("Diagnostics"),
-                content=ft.Text("Local mode is active. Online connection test is not required."),
+                title=ft.Text("接続診断 | Diagnostics"),
+                content=ft.Text("ローカルモードでは接続テストは不要です。\nLocal mode is active. Online connection test is not required."),
                 actions=[ft.TextButton("OK", on_click=lambda e: (setattr(dlg, "open", False), page.update()))],
             )
             page.overlay.append(dlg)
@@ -587,8 +587,8 @@ def main(page: ft.Page):
         if result.get("success"):
             _set_diagnostics_status(status="OK", last_error="-", do_update=True)
             dlg = ft.AlertDialog(
-                title=ft.Text("Diagnostics"),
-                content=ft.Text("Connection test successful."),
+                title=ft.Text("接続診断 | Diagnostics"),
+                content=ft.Text("接続テストに成功しました。\nConnection test successful."),
                 actions=[ft.TextButton("OK", on_click=lambda e: (setattr(dlg, "open", False), page.update()))],
             )
             page.overlay.append(dlg)
@@ -702,14 +702,15 @@ def main(page: ft.Page):
     diagnostics_last_error_text = ft.Text("", size=12, color=ft.Colors.GREY_700)
 
     diagnostics_panel = ft.Container(
+        width=340,
         content=ft.Column(
             [
-                ft.Text("Diagnostics", weight=ft.FontWeight.BOLD, size=14),
+                ft.Text("\u63a5\u7d9a\u8a3a\u65ad | Diagnostics", weight=ft.FontWeight.BOLD, size=14),
                 diagnostics_mode_text,
                 diagnostics_host_text,
                 diagnostics_connection_text,
                 diagnostics_last_error_text,
-                ft.TextButton("Test Connection", icon=ft.Icons.NETWORK_CHECK, on_click=test_connection),
+                ft.TextButton("\u63a5\u7d9a\u30c6\u30b9\u30c8 | Test Connection", icon=ft.Icons.NETWORK_CHECK, on_click=test_connection),
             ],
             spacing=4,
         ),
@@ -729,55 +730,57 @@ def main(page: ft.Page):
             # 1. Header
             ft.Row(
                 [
-                    ft.Text(" 🪪 年次点検管理システム | Annual Inspection Management System", size=28, weight=ft.FontWeight.BOLD, color=ft.Colors.BLUE_900),
+                    ft.Text("年次点検管理システム | Annual Inspection Management System", size=28, weight=ft.FontWeight.BOLD, color=ft.Colors.BLUE_900),
                     ft.Container(expand=True),
                     ft.Text(f"Mode: {runtime_mode.upper()} (Config: {configured_mode})", size=12, color=ft.Colors.GREY_600),
                     ft.Text(f"Version {APP_VERSION}", size=12, color=ft.Colors.GREY_600),
                 ],
                 alignment=ft.MainAxisAlignment.START,
             ),
-            
-            # 2. Input Section
-            ft.Container(
-                content=ft.Column([
-                    # Row 1: Company Name
-                    company_name, 
-                    notes_text,
-                    
-                    # Row 2: Date Picker, Date Display, and Add Button (ALL TOGETHER)
-                    ft.Row([
-                        ft.OutlinedButton(
-                            " 点検日を選択 | Select Date", 
-                            icon=ft.Icons.CALENDAR_MONTH, 
-                            on_click=lambda _: (setattr(date_picker, "open", True), page.update())
-                        ),
-                        selected_date_display,
-                        add_button,
-                        ft.Container(expand=True),
-                        export_button,
-                    ], alignment=ft.MainAxisAlignment.START), # Aligns everything to the left
-                ], spacing=10),
-                padding=ft.padding.only(bottom=10)
+
+            # 2. Input + Diagnostics
+            ft.Row(
+                [
+                    ft.Container(
+                        content=ft.Column([
+                            company_name,
+                            notes_text,
+                            ft.Row([
+                                ft.OutlinedButton(
+                                    "点検日を選択 | Select Date",
+                                    icon=ft.Icons.CALENDAR_MONTH,
+                                    on_click=lambda _: (setattr(date_picker, "open", True), page.update())
+                                ),
+                                selected_date_display,
+                                add_button,
+                                ft.Container(expand=True),
+                                export_button,
+                            ], alignment=ft.MainAxisAlignment.START),
+                        ], spacing=10),
+                        expand=True,
+                        padding=ft.padding.only(bottom=10),
+                    ),
+                    diagnostics_panel,
+                ],
+                alignment=ft.MainAxisAlignment.START,
+                vertical_alignment=ft.CrossAxisAlignment.START,
             ),
-            
+
             ft.Divider(height=1, color=ft.Colors.GREY_300),
-            
+
             # 3. Search & Sort Controls
             ft.Row([
                 search_field,
                 ft.TextButton("日付順 | Date Sort", icon=ft.Icons.SORT, on_click=lambda _: toggle_sort("next")),
                 ft.TextButton("名前順 | Name Sort", icon=ft.Icons.SORT_BY_ALPHA, on_click=lambda _: toggle_sort("name")),
                 ft.FilledButton(
-                    " 📦 バックアップ | Backup",
+                    "バックアップ | Backup",
                     icon=ft.Icons.BACKUP,
                     on_click=lambda _: backup_database(),
                 ),
             ], alignment=ft.MainAxisAlignment.START),
-            
 
-            diagnostics_panel,
-
-            # 4. Main Dashboard (Fills Horizontal and Vertical Space)
+            # 4. Main Dashboard
             ft.Container(
                 content=main_table_container,
                 expand=True,
