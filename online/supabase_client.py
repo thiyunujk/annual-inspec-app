@@ -1,13 +1,10 @@
-﻿from typing import Optional
+﻿from functools import lru_cache
 
 from .config import get_supabase_anon_key, get_supabase_url
 
 
-def create_client_or_none() -> Optional[object]:
-    """
-    Returns a Supabase client when configuration and dependency are available.
-    Returns None otherwise so current local mode remains unaffected.
-    """
+@lru_cache(maxsize=1)
+def _create_cached_client():
     url = get_supabase_url()
     key = get_supabase_anon_key()
     if not url or not key:
@@ -19,3 +16,18 @@ def create_client_or_none() -> Optional[object]:
         return None
 
     return create_client(url, key)
+
+
+def create_client_or_none():
+    """Returns Supabase client or None if configuration/dependency is missing."""
+    return _create_cached_client()
+
+
+def get_client_or_raise():
+    client = _create_cached_client()
+    if client is None:
+        raise RuntimeError(
+            "Supabase client is unavailable. Set SUPABASE_URL and SUPABASE_ANON_KEY, "
+            "and install supabase package."
+        )
+    return client
