@@ -255,3 +255,14 @@ def delete_company(cid: int) -> Dict[str, Any]:
         return del_company
 
     return _success(True)
+
+
+def test_connection() -> Dict[str, Any]:
+    res = _request(
+        "GET",
+        "companies",
+        params={"select": "id", "limit": 1},
+    )
+    if not res.get("success"):
+        return res
+    return _success(True)

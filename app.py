@@ -4,6 +4,7 @@ import shutil
 import csv
 import json
 import logging
+from urllib.parse import urlparse
 from datetime import datetime, timedelta, date
 
 from db import (
@@ -19,7 +20,7 @@ from db import (
     DB_NAME
 )
 
-from online.config import get_app_mode, is_online_mode_enabled
+from online.config import get_app_mode, is_online_mode_enabled, get_supabase_url
 from online.supabase_client import create_client_or_none
 from online import repository as online_repository
 
@@ -56,6 +57,19 @@ def main(page: ft.Page):
     data_dir = get_data_dir()
     config_path = get_config_path()
 
+    supabase_host = "-"
+    raw_supabase_url = get_supabase_url().strip()
+    if raw_supabase_url:
+        parsed = urlparse(raw_supabase_url if "://" in raw_supabase_url else f"https://{raw_supabase_url}")
+        supabase_host = parsed.hostname or "-"
+
+    diagnostics_connection_status = "OK" if runtime_mode in ("local", "online") and (runtime_mode == "local" or online_mode_ready) else "Failed"
+    diagnostics_last_error = "-"
+    diagnostics_mode_text = None
+    diagnostics_host_text = None
+    diagnostics_connection_text = None
+    diagnostics_last_error_text = None
+
     def open_config(_):
         try:
             os.startfile(config_path)
@@ -70,6 +84,26 @@ def main(page: ft.Page):
             page.update()
 
     logger = logging.getLogger(__name__)
+
+    def _refresh_diagnostics_panel():
+        if diagnostics_mode_text is not None:
+            diagnostics_mode_text.value = f"Mode: {runtime_mode.upper()}"
+        if diagnostics_host_text is not None:
+            diagnostics_host_text.value = f"Supabase Host: {supabase_host}"
+        if diagnostics_connection_text is not None:
+            diagnostics_connection_text.value = f"Connection: {diagnostics_connection_status}"
+        if diagnostics_last_error_text is not None:
+            diagnostics_last_error_text.value = f"Last Error: {diagnostics_last_error}"
+
+    def _set_diagnostics_status(status=None, last_error=None, do_update=False):
+        nonlocal diagnostics_connection_status, diagnostics_last_error
+        if status is not None:
+            diagnostics_connection_status = status
+        if last_error is not None:
+            diagnostics_last_error = last_error
+        _refresh_diagnostics_panel()
+        if do_update:
+            page.update()
 
     def _friendly_error_message(result):
         status = result.get("status_code") if isinstance(result, dict) else None
@@ -94,6 +128,8 @@ def main(page: ft.Page):
         if isinstance(result, dict):
             details = result.get("details") or ""
 
+        _set_diagnostics_status(status="Failed", last_error=simple_message)
+
         dlg = ft.AlertDialog(
             title=ft.Text("Operation Failed"),
             content=ft.Text(f"{simple_message}\n\n{details}".strip()),
@@ -115,6 +151,7 @@ def main(page: ft.Page):
         if runtime_mode == "online":
             if isinstance(raw, dict) and "success" in raw:
                 if raw.get("success"):
+                    _set_diagnostics_status(status="OK", last_error="-")
                     return {"success": True, "data": raw.get("data"), "result": raw}
                 _show_data_error(action_name, raw)
                 return {"success": False, "data": default, "result": raw}
@@ -533,6 +570,31 @@ def main(page: ft.Page):
     )
 
     # ── Logic Actions ─────────────────────────────────────────────
+    def test_connection(_):
+        if runtime_mode != "online":
+            _set_diagnostics_status(status="OK", last_error="-")
+            dlg = ft.AlertDialog(
+                title=ft.Text("Diagnostics"),
+                content=ft.Text("Local mode is active. Online connection test is not required."),
+                actions=[ft.TextButton("OK", on_click=lambda e: (setattr(dlg, "open", False), page.update()))],
+            )
+            page.overlay.append(dlg)
+            dlg.open = True
+            page.update()
+            return
+
+        result = _run_data_op("Test connection", online_repository.test_connection, default=False)
+        if result.get("success"):
+            _set_diagnostics_status(status="OK", last_error="-", do_update=True)
+            dlg = ft.AlertDialog(
+                title=ft.Text("Diagnostics"),
+                content=ft.Text("Connection test successful."),
+                actions=[ft.TextButton("OK", on_click=lambda e: (setattr(dlg, "open", False), page.update()))],
+            )
+            page.overlay.append(dlg)
+            dlg.open = True
+            page.update()
+
     def on_search(val):
         nonlocal search_text
         search_text = val
@@ -633,6 +695,31 @@ def main(page: ft.Page):
     add_button = ft.FilledButton("💾 リストに追加 | Add to List", icon=ft.Icons.ADD, on_click=lambda _: add_or_update())
     export_button = ft.OutlinedButton("Export CSV", icon=ft.Icons.FILE_DOWNLOAD, on_click=lambda _: export_to_csv())
     search_field = ft.TextField(label="検索 | Search", prefix_icon=ft.Icons.SEARCH, expand=True, on_change=lambda e: on_search(e.control.value))
+
+    diagnostics_mode_text = ft.Text("")
+    diagnostics_host_text = ft.Text("")
+    diagnostics_connection_text = ft.Text("")
+    diagnostics_last_error_text = ft.Text("", size=12, color=ft.Colors.GREY_700)
+
+    diagnostics_panel = ft.Container(
+        content=ft.Column(
+            [
+                ft.Text("Diagnostics", weight=ft.FontWeight.BOLD, size=14),
+                diagnostics_mode_text,
+                diagnostics_host_text,
+                diagnostics_connection_text,
+                diagnostics_last_error_text,
+                ft.TextButton("Test Connection", icon=ft.Icons.NETWORK_CHECK, on_click=test_connection),
+            ],
+            spacing=4,
+        ),
+        padding=10,
+        border=ft.border.all(1, ft.Colors.GREY_300),
+        border_radius=8,
+        bgcolor=ft.Colors.GREY_100,
+    )
+
+    _refresh_diagnostics_panel()
     
 
     # ── Final Layout (Fine-Tuned) ──────────────────────────────
@@ -688,6 +775,7 @@ def main(page: ft.Page):
             ], alignment=ft.MainAxisAlignment.START),
             
 
+            diagnostics_panel,
 
             # 4. Main Dashboard (Fills Horizontal and Vertical Space)
             ft.Container(
