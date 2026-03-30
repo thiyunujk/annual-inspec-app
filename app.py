@@ -3,6 +3,7 @@ import os
 import shutil
 import csv
 import json
+import logging
 from datetime import datetime, timedelta, date
 
 from db import (
@@ -68,6 +69,62 @@ def main(page: ft.Page):
             dlg.open = True
             page.update()
 
+    logger = logging.getLogger(__name__)
+
+    def _friendly_error_message(result):
+        status = result.get("status_code") if isinstance(result, dict) else None
+        error_text = (result.get("error") or "") if isinstance(result, dict) else ""
+
+        if status in (401, 403) or "Unauthorized" in error_text or "Forbidden" in error_text:
+            return "Authentication error. Check configuration."
+        if status is not None and status >= 500:
+            return "Server error. Try later."
+        if "Network error" in error_text or "Timeout" in error_text or "Connection" in error_text:
+            return "Connection lost. Please try again."
+        if status == 404:
+            return "Server error. Try later."
+        return "Server error. Try later."
+
+    def _show_data_error(action_name, result):
+        simple_message = _friendly_error_message(result)
+        print(f"[DATA ERROR] {action_name}: {result}")
+        logger.error("%s failed: %s", action_name, result)
+
+        details = ""
+        if isinstance(result, dict):
+            details = result.get("details") or ""
+
+        dlg = ft.AlertDialog(
+            title=ft.Text("Operation Failed"),
+            content=ft.Text(f"{simple_message}\n\n{details}".strip()),
+            actions=[ft.TextButton("OK", on_click=lambda e: (setattr(dlg, "open", False), page.update()))],
+        )
+        page.overlay.append(dlg)
+        dlg.open = True
+        page.update()
+
+    def _run_data_op(action_name, func, *args, default=None):
+        try:
+            raw = func(*args)
+        except Exception as exc:
+            logger.exception("Unexpected failure in %s", action_name)
+            result = {"success": False, "error": "Unexpected error", "details": str(exc)}
+            _show_data_error(action_name, result)
+            return {"success": False, "data": default, "result": result}
+
+        if runtime_mode == "online":
+            if isinstance(raw, dict) and "success" in raw:
+                if raw.get("success"):
+                    return {"success": True, "data": raw.get("data"), "result": raw}
+                _show_data_error(action_name, raw)
+                return {"success": False, "data": default, "result": raw}
+
+            invalid = {"success": False, "error": "Invalid Response", "details": "Unexpected repository return format"}
+            _show_data_error(action_name, invalid)
+            return {"success": False, "data": default, "result": invalid}
+
+        return {"success": True, "data": raw, "result": {"success": True}}
+
     def ensure_data_dir():
         try:
             os.makedirs(data_dir, exist_ok=True)
@@ -79,31 +136,33 @@ def main(page: ft.Page):
         except Exception as e:
             return False, str(e)
 
-    ok, err = ensure_data_dir()
-    if not ok:
-        dlg = ft.AlertDialog(
-            title=ft.Text("Data Path Unavailable"),
-            content=ft.Text(
-                "The data folder cannot be accessed.\n\n"
-                f"Data path:\n{data_dir}\n\n"
-                f"Config file:\n{config_path}\n\n"
-                f"Error:\n{err}\n\n"
-                "Fix the share path or permissions, then restart the app."
-            ),
-            actions=[
-                ft.TextButton("Open Config", on_click=open_config),
-                ft.TextButton("OK", on_click=lambda e: (setattr(dlg, "open", False), page.update())),
-            ],
-        )
-        page.overlay.append(dlg)
-        dlg.open = True
-        page.add(ft.Text("Data path unavailable. Fix the share path or permissions, then restart the app.", color=ft.Colors.RED))
-        page.update()
-        return
+
+    if runtime_mode == "local":
+        ok, err = ensure_data_dir()
+        if not ok:
+            dlg = ft.AlertDialog(
+                title=ft.Text("Data Path Unavailable"),
+                content=ft.Text(
+                    "The data folder cannot be accessed.\n\n"
+                    f"Data path:\n{data_dir}\n\n"
+                    f"Config file:\n{config_path}\n\n"
+                    f"Error:\n{err}\n\n"
+                    "Fix the share path or permissions, then restart the app."
+                ),
+                actions=[
+                    ft.TextButton("Open Config", on_click=open_config),
+                    ft.TextButton("OK", on_click=lambda e: (setattr(dlg, "open", False), page.update())),
+                ],
+            )
+            page.overlay.append(dlg)
+            dlg.open = True
+            page.add(ft.Text("Data path unavailable. Fix the share path or permissions, then restart the app.", color=ft.Colors.RED))
+            page.update()
+            return
 
     # Create DB/schema on first launch so fresh installs work.
-    init_db()                   # ✔ once
-    companies = db_load_companies() # ✔ safe
+    _run_data_op("Initialize data source", db_init, default=True)
+    companies = _run_data_op("Load companies", db_load_companies, default=[])["data"] or []
 
 
     edit_index = None
@@ -114,10 +173,10 @@ def main(page: ft.Page):
 
     if online_mode_requested and not online_mode_ready:
         dlg = ft.AlertDialog(
-            title=ft.Text("Online Mode Setup in Progress"),
+            title=ft.Text("Online Mode Notice"),
             content=ft.Text(
-                "APP_MODE is set to online, but online data connection is still under development.\n"
-                "The app is currently running in local mode."
+                "APP_MODE is online, but Supabase connection is unavailable.\n"
+                "The app is running in local mode."
             ),
             actions=[ft.TextButton("OK", on_click=lambda e: (setattr(dlg, "open", False), page.update()))],
         )
@@ -317,7 +376,7 @@ def main(page: ft.Page):
             this_name = c.get("name")
 
             def show_history(cid, cname):
-                history = db_load_inspection_history(cid)
+                history = _run_data_op("Load inspection history", db_load_inspection_history, cid, default=[])["data"] or []
                 if history:
                     items = []
                     for h in history:
@@ -501,28 +560,35 @@ def main(page: ft.Page):
 
         if edit_index is not None:
             cid = companies[edit_index]["id"]
-            db_update_company(cid, company_name.value)
-            db_add_inspection(cid, done_s, next_s, notes_s)
+            if not _run_data_op("Update company", db_update_company, cid, company_name.value, default=True)["success"]:
+                return
+            if not _run_data_op("Add inspection", db_add_inspection, cid, done_s, next_s, notes_s, default=True)["success"]:
+                return
             edit_index = None
             add_button.text = "リストに追加 | Add to List"
         else:
-            cid = db_add_company(company_name.value)
-            db_add_inspection(cid, done_s, next_s, notes_s)
+            cid_result = _run_data_op("Add company", db_add_company, company_name.value, default=None)
+            if not cid_result["success"]:
+                return
+            cid = cid_result["data"]
+            if not _run_data_op("Add inspection", db_add_inspection, cid, done_s, next_s, notes_s, default=True)["success"]:
+                return
 
         company_name.value = ""
         notes_text.value = ""
         date_picker.value = None
         selected_date_display.value = "未選択 | Not selected"
 
-        companies = db_load_companies()
+        companies = _run_data_op("Reload companies", db_load_companies, default=[])["data"] or []
         update_table()
 
 
     def confirm_delete(tid, nm):
         def on_delete(e):
             nonlocal companies
-            db_delete_company(tid)
-            companies = db_load_companies()
+            if not _run_data_op("Delete company", db_delete_company, tid, default=True)["success"]:
+                return
+            companies = _run_data_op("Reload companies", db_load_companies, default=[])["data"] or []
             update_table()
             dlg.open = False
             page.update()
