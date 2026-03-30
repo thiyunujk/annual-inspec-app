@@ -1,4 +1,4 @@
-﻿import flet as ft
+import flet as ft
 import os
 import shutil
 import csv
@@ -19,12 +19,33 @@ from db import (
 )
 
 from online.config import get_app_mode, is_online_mode_enabled
+from online.supabase_client import create_client_or_none
+from online import repository as online_repository
 
 def main(page: ft.Page):
-    APP_VERSION = "1.0.4"
+    APP_VERSION = "1.1.0"
     configured_mode = get_app_mode()
     online_mode_requested = is_online_mode_enabled()
     runtime_mode = "local"
+    online_mode_ready = online_mode_requested and (create_client_or_none() is not None)
+
+    db_init = init_db
+    db_load_companies = load_companies
+    db_add_company = add_company
+    db_add_inspection = add_inspection
+    db_load_inspection_history = load_inspection_history
+    db_update_company = update_company
+    db_delete_company = delete_company
+
+    if online_mode_ready:
+        runtime_mode = "online"
+        db_init = online_repository.init_db
+        db_load_companies = online_repository.load_companies
+        db_add_company = online_repository.add_company
+        db_add_inspection = online_repository.add_inspection
+        db_load_inspection_history = online_repository.load_inspection_history
+        db_update_company = online_repository.update_company
+        db_delete_company = online_repository.delete_company
     page.title = "年次点検管理システム | Annual Inspection Tracker"
     page.window_width = 1200
     page.window_height = 900
@@ -82,7 +103,7 @@ def main(page: ft.Page):
 
     # Create DB/schema on first launch so fresh installs work.
     init_db()                   # ✔ once
-    companies = load_companies() # ✔ safe
+    companies = db_load_companies() # ✔ safe
 
 
     edit_index = None
@@ -91,7 +112,7 @@ def main(page: ft.Page):
     sort_reverse = False
     page.session_notified = False
 
-    if online_mode_requested:
+    if online_mode_requested and not online_mode_ready:
         dlg = ft.AlertDialog(
             title=ft.Text("Online Mode Setup in Progress"),
             content=ft.Text(
@@ -106,6 +127,17 @@ def main(page: ft.Page):
 
     def backup_database():
         try:
+            if runtime_mode == "online":
+                dlg = ft.AlertDialog(
+                    title=ft.Text("Backup Info"),
+                    content=ft.Text("Online mode uses cloud database. Use Supabase backups and CSV export."),
+                    actions=[ft.TextButton("OK", on_click=lambda e: close_dialog(dlg))],
+                )
+                page.overlay.append(dlg)
+                dlg.open = True
+                page.update()
+                return
+
             db_file = DB_NAME
             backup_dir = os.path.join(get_data_dir(), "backups")
 
@@ -285,7 +317,7 @@ def main(page: ft.Page):
             this_name = c.get("name")
 
             def show_history(cid, cname):
-                history = load_inspection_history(cid)
+                history = db_load_inspection_history(cid)
                 if history:
                     items = []
                     for h in history:
@@ -469,28 +501,28 @@ def main(page: ft.Page):
 
         if edit_index is not None:
             cid = companies[edit_index]["id"]
-            update_company(cid, company_name.value)
-            add_inspection(cid, done_s, next_s, notes_s)
+            db_update_company(cid, company_name.value)
+            db_add_inspection(cid, done_s, next_s, notes_s)
             edit_index = None
             add_button.text = "リストに追加 | Add to List"
         else:
-            cid = add_company(company_name.value)
-            add_inspection(cid, done_s, next_s, notes_s)
+            cid = db_add_company(company_name.value)
+            db_add_inspection(cid, done_s, next_s, notes_s)
 
         company_name.value = ""
         notes_text.value = ""
         date_picker.value = None
         selected_date_display.value = "未選択 | Not selected"
 
-        companies = load_companies()
+        companies = db_load_companies()
         update_table()
 
 
     def confirm_delete(tid, nm):
         def on_delete(e):
             nonlocal companies
-            delete_company(tid)
-            companies = load_companies()
+            db_delete_company(tid)
+            companies = db_load_companies()
             update_table()
             dlg.open = False
             page.update()

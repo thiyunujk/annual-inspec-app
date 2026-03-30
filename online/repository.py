@@ -1,29 +1,55 @@
-﻿from .supabase_client import get_client_or_raise
+﻿import requests
+
+from .supabase_client import get_client_or_raise
+
+
+def _headers(key, prefer_return=False):
+    headers = {
+        "apikey": key,
+        "Authorization": f"Bearer {key}",
+        "Content-Type": "application/json",
+    }
+    if prefer_return:
+        headers["Prefer"] = "return=representation"
+    return headers
+
+
+def _request(method, endpoint, *, params=None, json_body=None, prefer_return=False):
+    client = get_client_or_raise()
+    base = client["url"] + "/rest/v1"
+    url = f"{base}/{endpoint}"
+
+    resp = requests.request(
+        method=method,
+        url=url,
+        params=params,
+        json=json_body,
+        headers=_headers(client["key"], prefer_return=prefer_return),
+        timeout=20,
+    )
+    resp.raise_for_status()
+    if resp.text:
+        return resp.json()
+    return []
 
 
 def init_db():
-    """Online DB is managed in Supabase; no local init required."""
+    """Schema is managed in Supabase."""
     return True
 
 
 def load_companies():
-    client = get_client_or_raise()
-
-    companies_res = (
-        client.table("companies")
-        .select("id,name")
-        .order("name")
-        .execute()
+    companies_rows = _request(
+        "GET",
+        "companies",
+        params={"select": "id,name", "order": "name.asc"},
     )
-    companies_rows = companies_res.data or []
 
-    inspections_res = (
-        client.table("inspections")
-        .select("id,company_id,done_date,next_date,notes")
-        .order("id", desc=True)
-        .execute()
+    inspections_rows = _request(
+        "GET",
+        "inspections",
+        params={"select": "id,company_id,done_date,next_date,notes", "order": "id.desc"},
     )
-    inspections_rows = inspections_res.data or []
 
     latest_by_company = {}
     for row in inspections_rows:
@@ -48,56 +74,51 @@ def load_companies():
 
 
 def add_company(name):
-    client = get_client_or_raise()
-    res = (
-        client.table("companies")
-        .insert({"name": name})
-        .execute()
+    rows = _request(
+        "POST",
+        "companies",
+        json_body={"name": name},
+        prefer_return=True,
     )
-    row = (res.data or [None])[0]
+    row = rows[0] if rows else None
     if not row or "id" not in row:
         raise RuntimeError("Failed to create company in online database.")
     return row["id"]
 
 
 def update_company(cid, name):
-    client = get_client_or_raise()
-    (
-        client.table("companies")
-        .update({"name": name})
-        .eq("id", cid)
-        .execute()
+    _request(
+        "PATCH",
+        "companies",
+        params={"id": f"eq.{cid}"},
+        json_body={"name": name},
     )
 
 
 def add_inspection(cid, done_s, next_s, notes):
-    client = get_client_or_raise()
-    (
-        client.table("inspections")
-        .insert(
-            {
-                "company_id": cid,
-                "done_date": done_s,
-                "next_date": next_s,
-                "notes": notes,
-            }
-        )
-        .execute()
+    _request(
+        "POST",
+        "inspections",
+        json_body={
+            "company_id": cid,
+            "done_date": done_s,
+            "next_date": next_s,
+            "notes": notes,
+        },
     )
 
 
 def load_inspection_history(cid):
-    client = get_client_or_raise()
-    res = (
-        client.table("inspections")
-        .select("done_date,next_date,notes,id")
-        .eq("company_id", cid)
-        .order("done_date", desc=True)
-        .order("id", desc=True)
-        .execute()
+    rows = _request(
+        "GET",
+        "inspections",
+        params={
+            "select": "done_date,next_date,notes,id",
+            "company_id": f"eq.{cid}",
+            "order": "done_date.desc,id.desc",
+        },
     )
 
-    rows = res.data or []
     return [
         {
             "done": r.get("done_date"),
@@ -109,16 +130,13 @@ def load_inspection_history(cid):
 
 
 def delete_company(cid):
-    client = get_client_or_raise()
-    (
-        client.table("inspections")
-        .delete()
-        .eq("company_id", cid)
-        .execute()
+    _request(
+        "DELETE",
+        "inspections",
+        params={"company_id": f"eq.{cid}"},
     )
-    (
-        client.table("companies")
-        .delete()
-        .eq("id", cid)
-        .execute()
+    _request(
+        "DELETE",
+        "companies",
+        params={"id": f"eq.{cid}"},
     )

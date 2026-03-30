@@ -1,33 +1,26 @@
-﻿from functools import lru_cache
-
-from .config import get_supabase_anon_key, get_supabase_url
-
-
-@lru_cache(maxsize=1)
-def _create_cached_client():
-    url = get_supabase_url()
-    key = get_supabase_anon_key()
-    if not url or not key:
-        return None
-
-    try:
-        from supabase import create_client  # type: ignore
-    except Exception:
-        return None
-
-    return create_client(url, key)
+﻿from .config import get_supabase_anon_key, get_supabase_url
 
 
 def create_client_or_none():
-    """Returns Supabase client or None if configuration/dependency is missing."""
-    return _create_cached_client()
+    """
+    Returns a lightweight client config dict or None if env is incomplete.
+    We use direct PostgREST HTTP calls to avoid heavy SDK dependencies.
+    """
+    url = get_supabase_url().rstrip("/")
+    key = get_supabase_anon_key().strip()
+    if not url or not key:
+        return None
+
+    return {
+        "url": url,
+        "key": key,
+    }
 
 
 def get_client_or_raise():
-    client = _create_cached_client()
+    client = create_client_or_none()
     if client is None:
         raise RuntimeError(
-            "Supabase client is unavailable. Set SUPABASE_URL and SUPABASE_ANON_KEY, "
-            "and install supabase package."
+            "Supabase config is missing. Set SUPABASE_URL and SUPABASE_ANON_KEY in .env."
         )
     return client
