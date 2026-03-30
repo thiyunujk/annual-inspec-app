@@ -18,8 +18,13 @@ from db import (
     DB_NAME
 )
 
+from online.config import get_app_mode, is_online_mode_enabled
+
 def main(page: ft.Page):
-    APP_VERSION = "1.0.2"
+    APP_VERSION = "1.0.3"
+    configured_mode = get_app_mode()
+    online_mode_requested = is_online_mode_enabled()
+    runtime_mode = "local"
     page.title = "年次点検管理システム | Annual Inspection Tracker"
     page.window_width = 1200
     page.window_height = 900
@@ -85,6 +90,19 @@ def main(page: ft.Page):
     sort_by = "next"
     sort_reverse = False
     page.session_notified = False
+
+    if online_mode_requested:
+        dlg = ft.AlertDialog(
+            title=ft.Text("Online Mode Setup in Progress"),
+            content=ft.Text(
+                "APP_MODE is set to online, but online data connection is still under development.\n"
+                "The app is currently running in local mode."
+            ),
+            actions=[ft.TextButton("OK", on_click=lambda e: (setattr(dlg, "open", False), page.update()))],
+        )
+        page.overlay.append(dlg)
+        dlg.open = True
+        page.update()
 
     def backup_database():
         try:
@@ -528,6 +546,7 @@ def main(page: ft.Page):
                 [
                     ft.Text(" 🪪 年次点検管理システム | Annual Inspection Management System", size=28, weight=ft.FontWeight.BOLD, color=ft.Colors.BLUE_900),
                     ft.Container(expand=True),
+                    ft.Text(f"Mode: {runtime_mode.upper()} (Config: {configured_mode})", size=12, color=ft.Colors.GREY_600),
                     ft.Text(f"Version {APP_VERSION}", size=12, color=ft.Colors.GREY_600),
                 ],
                 alignment=ft.MainAxisAlignment.START,
