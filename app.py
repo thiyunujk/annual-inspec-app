@@ -702,7 +702,7 @@ def main(page: ft.Page):
 
     diagnostics_panel = ft.Container(
         width=340,
-        height=190,
+        height=176,
         content=ft.Column(
             [
                 ft.Text("\u63a5\u7d9a\u8a3a\u65ad | Diagnostics", weight=ft.FontWeight.BOLD, size=14),
@@ -714,7 +714,7 @@ def main(page: ft.Page):
             ],
             spacing=4,
         ),
-        padding=10,
+        padding=8,
         border=ft.border.all(1, ft.Colors.GREY_300),
         border_radius=8,
         bgcolor=ft.Colors.GREY_100,
@@ -739,30 +739,35 @@ def main(page: ft.Page):
             ),
 
             # 2. Input + Diagnostics
-            ft.Row(
-                [
-                    ft.Container(
-                        content=ft.Column([
-                            company_name,
-                            notes_text,
-                            ft.Row([
-                                ft.OutlinedButton(
-                                    "点検日を選択 | Select Date",
-                                    icon=ft.Icons.CALENDAR_MONTH,
-                                    on_click=lambda _: (setattr(date_picker, "open", True), page.update())
-                                ),
-                                selected_date_display,
-                                add_button,
-                            ], alignment=ft.MainAxisAlignment.START),
-                        ], spacing=8),
-                        expand=True,
-                        height=190,
-                        padding=ft.padding.only(bottom=0),
-                    ),
-                    diagnostics_panel,
-                ],
-                alignment=ft.MainAxisAlignment.START,
-                vertical_alignment=ft.CrossAxisAlignment.START,
+            ft.Container(
+                content=ft.Row(
+                    [
+                        ft.Container(
+                            content=ft.Column([
+                                company_name,
+                                notes_text,
+                                ft.Row([
+                                    ft.OutlinedButton(
+                                        "??????????| Select Date",
+                                        icon=ft.Icons.CALENDAR_MONTH,
+                                        on_click=lambda _: (setattr(date_picker, "open", True), page.update())
+                                    ),
+                                    selected_date_display,
+                                    add_button,
+                                ], alignment=ft.MainAxisAlignment.START),
+                            ], spacing=6, alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
+                            expand=True,
+                            height=176,
+                        ),
+                        diagnostics_panel,
+                    ],
+                    alignment=ft.MainAxisAlignment.START,
+                    vertical_alignment=ft.CrossAxisAlignment.START,
+                ),
+                padding=10,
+                border=ft.border.all(1, ft.Colors.GREY_300),
+                border_radius=10,
+                bgcolor=ft.Colors.WHITE,
             ),
 
             ft.Divider(height=1, color=ft.Colors.GREY_300),
