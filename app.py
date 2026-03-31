@@ -693,7 +693,6 @@ def main(page: ft.Page):
                 page.update(); break
 
     add_button = ft.FilledButton("💾 リストに追加 | Add to List", icon=ft.Icons.ADD, on_click=lambda _: add_or_update())
-    export_button = ft.OutlinedButton("Export CSV", icon=ft.Icons.FILE_DOWNLOAD, on_click=lambda _: export_to_csv())
     search_field = ft.TextField(label="検索 | Search", prefix_icon=ft.Icons.SEARCH, expand=True, on_change=lambda e: on_search(e.control.value))
 
     diagnostics_mode_text = ft.Text("")
@@ -703,6 +702,7 @@ def main(page: ft.Page):
 
     diagnostics_panel = ft.Container(
         width=340,
+        height=190,
         content=ft.Column(
             [
                 ft.Text("\u63a5\u7d9a\u8a3a\u65ad | Diagnostics", weight=ft.FontWeight.BOLD, size=14),
@@ -753,12 +753,11 @@ def main(page: ft.Page):
                                 ),
                                 selected_date_display,
                                 add_button,
-                                ft.Container(expand=True),
-                                export_button,
                             ], alignment=ft.MainAxisAlignment.START),
-                        ], spacing=10),
+                        ], spacing=8),
                         expand=True,
-                        padding=ft.padding.only(bottom=10),
+                        height=190,
+                        padding=ft.padding.only(bottom=0),
                     ),
                     diagnostics_panel,
                 ],
@@ -773,11 +772,6 @@ def main(page: ft.Page):
                 search_field,
                 ft.TextButton("日付順 | Date Sort", icon=ft.Icons.SORT, on_click=lambda _: toggle_sort("next")),
                 ft.TextButton("名前順 | Name Sort", icon=ft.Icons.SORT_BY_ALPHA, on_click=lambda _: toggle_sort("name")),
-                ft.FilledButton(
-                    "バックアップ | Backup",
-                    icon=ft.Icons.BACKUP,
-                    on_click=lambda _: backup_database(),
-                ),
             ], alignment=ft.MainAxisAlignment.START),
 
             # 4. Main Dashboard
@@ -788,7 +782,8 @@ def main(page: ft.Page):
         ], expand=True, spacing=15)
     )
 
-    show_monthly_backup_export_reminder()
+    if runtime_mode == "local":
+        show_monthly_backup_export_reminder()
     update_table()
 
 if __name__ == "__main__":
