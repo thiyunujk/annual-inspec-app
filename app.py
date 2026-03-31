@@ -503,9 +503,8 @@ def main(page: ft.Page):
         return widths
 
     col_widths = compute_col_widths()
-
-    company_name = ft.TextField(label="会社名 | Company Name", width=760)
-    notes_text = ft.TextField(label="メモ | Notes", multiline=True, min_lines=2, max_lines=4, width=760)
+    company_name = ft.TextField(label="\u4f1a\u793e\u540d | Company Name", expand=True)
+    notes_text = ft.TextField(label="\u30e1\u30e2 | Notes", multiline=True, min_lines=2, max_lines=2, expand=True)
     date_picker = ft.DatePicker(first_date=datetime.now() - timedelta(days=365*5), last_date=datetime.now() + timedelta(days=365*5))
     page.overlay.append(date_picker)
     selected_date_display = ft.Text("未選択 | Not selected", color=ft.Colors.GREY_700, size=13, italic=True)
@@ -702,7 +701,7 @@ def main(page: ft.Page):
 
     diagnostics_panel = ft.Container(
         width=340,
-        height=176,
+        height=200,
         content=ft.Column(
             [
                 ft.Text("\u63a5\u7d9a\u8a3a\u65ad | Diagnostics", weight=ft.FontWeight.BOLD, size=14),
@@ -712,7 +711,7 @@ def main(page: ft.Page):
                 diagnostics_last_error_text,
                 ft.TextButton("\u63a5\u7d9a\u30c6\u30b9\u30c8 | Test Connection", icon=ft.Icons.NETWORK_CHECK, on_click=test_connection),
             ],
-            spacing=4,
+            spacing=6,
         ),
         padding=8,
         border=ft.border.all(1, ft.Colors.GREY_300),
@@ -748,7 +747,7 @@ def main(page: ft.Page):
                                 notes_text,
                                 ft.Row([
                                     ft.OutlinedButton(
-                                        "??????????| Select Date",
+                                        "点検日を選択 | Select Date",
                                         icon=ft.Icons.CALENDAR_MONTH,
                                         on_click=lambda _: (setattr(date_picker, "open", True), page.update())
                                     ),
@@ -757,11 +756,12 @@ def main(page: ft.Page):
                                 ], alignment=ft.MainAxisAlignment.START),
                             ], spacing=6, alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
                             expand=True,
-                            height=176,
+                            height=200,
                         ),
                         diagnostics_panel,
                     ],
                     alignment=ft.MainAxisAlignment.START,
+                    spacing=12,
                     vertical_alignment=ft.CrossAxisAlignment.START,
                 ),
                 padding=10,
