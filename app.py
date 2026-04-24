@@ -36,7 +36,7 @@ def main(page: ft.Page):
             dlg = ft.AlertDialog(
                 title=ft.Text("Open Config Failed"),
                 content=ft.Text(str(e)),
-                actions=[ft.TextButton("OK", on_click=lambda e: (setattr(dlg, "open", False), page.update()))],
+                actions=[ft.TextButton("OK", on_click=lambda e: (setattr(dlg, "open", False), page.overlay.remove(dlg), page.update()))],
             )
             page.overlay.append(dlg)
             dlg.open = True
@@ -66,7 +66,7 @@ def main(page: ft.Page):
             ),
             actions=[
                 ft.TextButton("Open Config", on_click=open_config),
-                ft.TextButton("OK", on_click=lambda e: (setattr(dlg, "open", False), page.update())),
+                ft.TextButton("OK", on_click=lambda e: (setattr(dlg, "open", False), page.overlay.remove(dlg), page.update())),
             ],
         )
         page.overlay.append(dlg)
@@ -130,6 +130,8 @@ def main(page: ft.Page):
    
     def close_dialog(dlg):
         dlg.open = False
+        if dlg in page.overlay:
+            page.overlay.remove(dlg)
         page.update()
 
     def show_monthly_backup_export_reminder():
@@ -319,6 +321,8 @@ def main(page: ft.Page):
         if urgent_names and not page.session_notified:
             def close_dlg(e):
                 alert_dlg.open = False
+                if alert_dlg in page.overlay:
+                    page.overlay.remove(alert_dlg)
                 page.update()
 
             alert_dlg = ft.AlertDialog(
@@ -475,6 +479,8 @@ def main(page: ft.Page):
             companies = load_companies()
             update_table()
             dlg.open = False
+            if dlg in page.overlay:
+                page.overlay.remove(dlg)
             page.update()
 
         dlg = ft.AlertDialog(
@@ -483,7 +489,7 @@ def main(page: ft.Page):
             actions=[
                 ft.TextButton(
                     "❌ キャンセル | Cancel",
-                    on_click=lambda _: (setattr(dlg, "open", False), page.update())
+                    on_click=lambda _: (setattr(dlg, "open", False), page.overlay.remove(dlg), page.update())
                 ),
                 ft.TextButton(
                     "🗑️ 削除 | Delete",
