@@ -1,7 +1,7 @@
 ; Inno Setup Script for Annual Inspection Tracker
 
 #define AppName "Annual Inspection System"
-#define AppVersion "1.0.0"
+#define AppVersion "1.0.2"
 #define AppExeName "AnnualInspectionSystem.exe"
 #define AppPublisher "Annual Inspection System"
 #define AppURL ""
