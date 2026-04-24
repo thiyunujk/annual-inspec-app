@@ -245,7 +245,7 @@ def main(page: ft.Page):
         
         # Sorting
         if sort_by == "next":
-            visible_list.sort(key=lambda c: c["next"], reverse=sort_reverse)
+            visible_list.sort(key=lambda c: c["next"] or "", reverse=sort_reverse)
         else:
             visible_list.sort(key=lambda c: c["name"].lower(), reverse=sort_reverse)
 
