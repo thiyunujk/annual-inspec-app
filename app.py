@@ -422,7 +422,7 @@ def main(page: ft.Page):
         ),
         expand=True,
         bgcolor=ft.Colors.WHITE,
-        border=ft.border.all(1, ft.Colors.GREY_300),
+        border=ft.Border.all(1, ft.Colors.GREY_300),
         border_radius=12,
         clip_behavior=ft.ClipBehavior.ANTI_ALIAS,
     )
@@ -559,7 +559,7 @@ def main(page: ft.Page):
                         export_button,
                     ], alignment=ft.MainAxisAlignment.START), # Aligns everything to the left
                 ], spacing=10),
-                padding=ft.padding.only(bottom=10)
+                padding=ft.Padding.only(bottom=10)
             ),
             
             ft.Divider(height=1, color=ft.Colors.GREY_300),
