@@ -130,9 +130,9 @@ def main(page: ft.Page):
    
     def close_dialog(dlg):
         dlg.open = False
+        page.update()
         if dlg in page.overlay:
             page.overlay.remove(dlg)
-        page.update()
 
     def show_monthly_backup_export_reminder():
         month_key = datetime.now().strftime("%Y-%m")
@@ -321,9 +321,9 @@ def main(page: ft.Page):
         if urgent_names and not page.session_notified:
             def close_dlg(e):
                 alert_dlg.open = False
+                page.update()
                 if alert_dlg in page.overlay:
                     page.overlay.remove(alert_dlg)
-                page.update()
 
             alert_dlg = ft.AlertDialog(
                 modal=False,
