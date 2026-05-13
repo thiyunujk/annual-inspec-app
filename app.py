@@ -36,7 +36,7 @@ def main(page: ft.Page):
             dlg = ft.AlertDialog(
                 title=ft.Text("Open Config Failed"),
                 content=ft.Text(str(e)),
-                actions=[ft.TextButton("OK", on_click=lambda e: (setattr(dlg, "open", False), page.overlay.remove(dlg), page.update()))],
+                actions=[ft.TextButton("OK", on_click=lambda e: (setattr(dlg, "open", False), page.update()))],
             )
             page.overlay.append(dlg)
             dlg.open = True
@@ -66,7 +66,7 @@ def main(page: ft.Page):
             ),
             actions=[
                 ft.TextButton("Open Config", on_click=open_config),
-                ft.TextButton("OK", on_click=lambda e: (setattr(dlg, "open", False), page.overlay.remove(dlg), page.update())),
+                ft.TextButton("OK", on_click=lambda e: (setattr(dlg, "open", False), page.update())),
             ],
         )
         page.overlay.append(dlg)
@@ -85,6 +85,7 @@ def main(page: ft.Page):
     sort_by = "next"
     sort_reverse = False
     page.session_notified = False
+    page.backup_reminder_shown = False
 
     def backup_database():
         try:
@@ -131,10 +132,10 @@ def main(page: ft.Page):
     def close_dialog(dlg):
         dlg.open = False
         page.update()
-        if dlg in page.overlay:
-            page.overlay.remove(dlg)
 
     def show_monthly_backup_export_reminder():
+        if page.backup_reminder_shown:
+            return
         month_key = datetime.now().strftime("%Y-%m")
         config = {}
 
@@ -158,6 +159,7 @@ def main(page: ft.Page):
             # If config write fails, continue showing reminder for safety.
             pass
 
+        page.backup_reminder_shown = True
         dlg = ft.AlertDialog(
             title=ft.Text("Monthly Reminder | 月次リマインダー"),
             content=ft.Text(
@@ -317,13 +319,10 @@ def main(page: ft.Page):
             )
 
         # ── Trigger Notification ──
-        # ── Trigger Notification using Alert Dialog ──
         if urgent_names and not page.session_notified:
             def close_dlg(e):
                 alert_dlg.open = False
                 page.update()
-                if alert_dlg in page.overlay:
-                    page.overlay.remove(alert_dlg)
 
             alert_dlg = ft.AlertDialog(
                 modal=False,
@@ -338,11 +337,10 @@ def main(page: ft.Page):
                 ],
                 actions_alignment=ft.MainAxisAlignment.END,
             )
-            
             page.overlay.append(alert_dlg)
             alert_dlg.open = True
-            page.session_notified = True # Set this so it only pops up once per app start
-            
+            page.session_notified = True
+
         page.update()
 
     # ── UI Components & Fixed Alignment ───────────────────────────
@@ -473,32 +471,31 @@ def main(page: ft.Page):
 
 
     def confirm_delete(tid, nm):
+        def on_cancel(_):
+            dlg.open = False
+            page.update()
+
         def on_delete(e):
             nonlocal companies
+            dlg.open = False
+            page.update()
             delete_company(tid)
             companies = load_companies()
             update_table()
-            dlg.open = False
-            if dlg in page.overlay:
-                page.overlay.remove(dlg)
-            page.update()
 
         dlg = ft.AlertDialog(
+            modal=True,
             title=ft.Text(" 🚨 削除確認 | Delete Confirmation"),
             content=ft.Text(f"{nm} を削除しますか？ | Delete {nm}?"),
             actions=[
-                ft.TextButton(
-                    "❌ キャンセル | Cancel",
-                    on_click=lambda _: (setattr(dlg, "open", False), page.overlay.remove(dlg), page.update())
-                ),
+                ft.TextButton("❌ キャンセル | Cancel", on_click=on_cancel),
                 ft.TextButton(
                     "🗑️ 削除 | Delete",
                     on_click=on_delete,
                     style=ft.ButtonStyle(color=ft.Colors.RED),
                 ),
             ],
-        )        
-
+        )
         page.overlay.append(dlg)
         dlg.open = True
         page.update()
@@ -591,3 +588,4 @@ def main(page: ft.Page):
 
 if __name__ == "__main__":
     ft.run(main)
+
